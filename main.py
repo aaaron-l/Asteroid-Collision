@@ -17,7 +17,7 @@ running = True
 
 class Asteroid:
     def __init__(self):
-        self.r = randint(30, 50)
+        self.r = randint(10, 70)
         self.velocity = pygame.math.Vector2(randint(-10, 10), randint(-10, 10))
         self.pos = pygame.math.Vector2(randint(0, WIDTH), randint(0, HEIGHT))
 
