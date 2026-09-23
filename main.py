@@ -15,12 +15,14 @@ running = True
 try:
     spaceship = pygame.image.load("spaceship.png").convert_alpha()
 except pygame.error:
-    spaceship = pygame.Surface((30, 30), pygame.SRCALPHA)
-    pygame.draw.polygon(spaceship, (0, 255, 0), [(15, 0), (0, 30), (30, 30)])
+    # Notice we flipped the triangle coords to point UP (0 degrees in Pygame math)
+    spaceship = pygame.Surface((70, 100), pygame.SRCALPHA)
+    pygame.draw.polygon(spaceship, (0, 255, 0), [(35, 0), (0, 100), (70, 100)])
 
 spaceship = pygame.transform.scale(spaceship, (70, 100))
-spaceship_x = WIDTH/2
-spaceship_y = HEIGHT/2
+spaceship_pos = pygame.math.Vector2(WIDTH/2, HEIGHT/2)
+ship_speed = 5
+angle = 0
 
 class Asteroid:
     def __init__(self):
@@ -51,7 +53,8 @@ class Asteroid:
 class Missile:
     def __init__(self, target_pos):
         self.radius = 7
-        self.pos = pygame.math.Vector2(WIDTH/2, HEIGHT/2)
+        # Spawn at the spaceship's current tracking position
+        self.pos = pygame.math.Vector2(spaceship_pos.x, spaceship_pos.y)
         
         direction_vector = target_pos - self.pos
         if direction_vector.length() == 0:
@@ -80,6 +83,20 @@ while running:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
             missiles.append(Missile(pygame.math.Vector2(event.pos)))
+        
+    keys = pygame.key.get_pressed()
+    
+    if keys[pygame.K_LEFT]:
+        angle += 3
+
+    if keys[pygame.K_RIGHT]:
+        angle -= 3
+    
+    rad = radians(angle + 90)
+    direction_ship = pygame.math.Vector2(cos(rad), -sin(rad))
+
+    if keys[pygame.K_UP]:
+        spaceship_pos += direction_ship * ship_speed
 
     for asteroid in asteroids:
         asteroid.move()
@@ -134,7 +151,9 @@ while running:
     for missile in missiles:
         missile.draw()
 
-    screen.blit(spaceship, (spaceship_x, spaceship_y))
+    rotated_ship = pygame.transform.rotate(spaceship, angle)
+    ship_rect = rotated_ship.get_rect(center=(int(spaceship_pos.x), int(spaceship_pos.y)))
+    screen.blit(rotated_ship, ship_rect.topleft)
 
     pygame.display.flip()
     clock.tick(60)
