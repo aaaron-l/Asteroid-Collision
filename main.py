@@ -20,9 +20,11 @@ except pygame.error:
 
 spaceship = pygame.transform.scale(spaceship, (70, 100))
 spaceship_pos = pygame.math.Vector2(WIDTH / 2, HEIGHT / 2)
-ship_speed = 5
+ship_speed = pygame.math.Vector2(0, 0)
 angle = 0
 
+THRUST = 0.12     
+DRAG = 0.993
 
 class Asteroid:
     def __init__(self):
@@ -99,6 +101,9 @@ while running:
         if event.type == pygame.MOUSEBUTTONDOWN:
             missiles.append(Missile(pygame.math.Vector2(event.pos)))
 
+    ship_speed *= DRAG
+    spaceship_pos += ship_speed
+
     keys = pygame.key.get_pressed()
 
     if keys[pygame.K_LEFT]:
@@ -115,7 +120,8 @@ while running:
     ship_rect = rotated_ship.get_rect(center=spaceship_pos)
 
     if keys[pygame.K_UP]:
-        spaceship_pos += direction_ship * ship_speed
+        acceleration = direction_ship * THRUST
+        ship_speed += acceleration
 
     # Wrap ship
     if ship_rect.left > WIDTH:
