@@ -81,7 +81,26 @@ class Missile:
             self.radius
         )
 
+class Enemy: 
+    def __init__(self) :
+        try:
+            self.image = pygame.image.load("enemy.png").convert_alpha()
+        except pygame.error:
+            self.image = pygame.Surface((70, 100), pygame.SRCALPHA)
+            pygame.draw.polygon(self.image, (0, 255, 0), [(35, 0), (0, 100), (70, 100)])
+        
+        self.image = pygame.transform.scale(self.image, (70, 100))
+        self.angle = 0
+        self.change_angle = choice([-1, 1])
+        
+        
+    def act(self):
+        self.forward = pygame.Vector2(
+            cos(radians(self.angle)),
+            -sin(radians(self.angle))
+        )
 
+        
 asteroids = []
 missiles = []
 
