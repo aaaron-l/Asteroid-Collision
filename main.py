@@ -22,6 +22,8 @@ spaceship = pygame.transform.scale(spaceship, (70, 100))
 spaceship_pos = pygame.math.Vector2(WIDTH / 2, HEIGHT / 2)
 ship_speed = pygame.math.Vector2(0, 0)
 angle = 0
+rad = radians(angle + 90)
+direction_ship = pygame.math.Vector2(cos(rad), -sin(rad))
 
 THRUST = 0.12     
 DRAG = 0.993
@@ -61,16 +63,10 @@ class Asteroid:
 
 
 class Missile:
-    def __init__(self, target_pos):
+    def __init__(self, direction):
         self.radius = 7
         self.pos = pygame.math.Vector2(spaceship_pos.x, spaceship_pos.y)
-
-        direction_vector = target_pos - self.pos
-
-        if direction_vector.length() == 0:
-            self.direction = pygame.math.Vector2(1, 0)
-        else:
-            self.direction = direction_vector.normalize()
+        self.direction = direction
 
         self.velocity = 20
 
@@ -99,7 +95,7 @@ while running:
             running = False
 
         if event.type == pygame.MOUSEBUTTONDOWN:
-            missiles.append(Missile(pygame.math.Vector2(event.pos)))
+            missiles.append(Missile(direction_ship))
 
     ship_speed *= DRAG
     spaceship_pos += ship_speed
