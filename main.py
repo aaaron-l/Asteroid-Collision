@@ -28,6 +28,10 @@ direction_ship = pygame.math.Vector2(cos(rad), -sin(rad))
 THRUST = 0.12     
 DRAG = 0.993
 
+asteroids = []
+missiles = []
+enemyMissile = []
+
 class Asteroid:
     def __init__(self):
         self.r = randint(10, 70)
@@ -89,10 +93,14 @@ class Enemy:
             self.image = pygame.Surface((70, 100), pygame.SRCALPHA)
             pygame.draw.polygon(self.image, (0, 255, 0), [(35, 0), (0, 100), (70, 100)])
         
+        self.pos = pygame.Vector2(300, 200)
         self.image = pygame.transform.scale(self.image, (70, 100))
         self.angle = 0
         self.change_angle = choice([-1, 1])
-        
+        self.rotation = 3
+        self.patrol_distance = 200
+        self.rotated = pygame.transform.rotate(self.image, self.angle)
+        self.rect = self.rotated.get_rect(center=self.pos)
         
     def act(self):
         self.forward = pygame.Vector2(
@@ -100,134 +108,185 @@ class Enemy:
             -sin(radians(self.angle))
         )
 
+        toPlayer = (spaceship_pos - self.pos).normalize()
+        distanceToPlayer = self.pos.distance_to(spaceship_pos)
+        dot = self.forward.dot(toPlayer)
+        self.mode(dot, distanceToPlayer, toPlayer)
+
+    def mode(self, dot, distanceToPlayer, toPlayer):
+        if distanceToPlayer <= self.patrol_distance:
+            if dot == 1:
+                self.shoot(enemyMissile)
+            elif dot < .995:
+                cross = (self.forward[0] * toPlayer[1]) - (self.forward[1] * toPlayer[0])
+
+                if cross > 0:
+                    self.angle -= self.rotation
+                else:
+                    self.angle += self.rotation
+            
+            else:
+                self.angle += self.change_angle * self.rotation
         
-asteroids = []
-missiles = []
+        self.rotated = pygame.transform.rotate(self.image, self.angle)
+        self.rect = self.rotated.get_rect(center=self.pos)
+
+    def shoot(self, list):
+        list.append(Missile(self.forward))
+
+    def draw(self):
+        screen.blit(self.rotated, self.rect.topleft)
+        
+enemies = [Enemy()]
 
 for x in range(6):
     asteroids.append(Asteroid())
 
+gameOver = False
 
 while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+    if not gameOver:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            missiles.append(Missile(direction_ship))
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                missiles.append(Missile(direction_ship))
 
-    ship_speed *= DRAG
-    spaceship_pos += ship_speed
+        ship_speed *= DRAG
+        spaceship_pos += ship_speed
 
-    keys = pygame.key.get_pressed()
+        keys = pygame.key.get_pressed()
 
-    if keys[pygame.K_LEFT]:
-        angle += 3
+        if keys[pygame.K_LEFT]:
+            angle += 3
 
-    if keys[pygame.K_RIGHT]:
-        angle -= 3
+        if keys[pygame.K_RIGHT]:
+            angle -= 3
 
-    rad = radians(angle + 90)
-    direction_ship = pygame.math.Vector2(cos(rad), -sin(rad))
+        rad = radians(angle + 90)
+        direction_ship = pygame.math.Vector2(cos(rad), -sin(rad))
 
-    # Create the rotated image and its Rect
-    rotated_ship = pygame.transform.rotate(spaceship, angle)
-    ship_rect = rotated_ship.get_rect(center=spaceship_pos)
+        # Create the rotated image and its Rect
+        rotated_ship = pygame.transform.rotate(spaceship, angle)
+        ship_rect = rotated_ship.get_rect(center=spaceship_pos)
 
-    if keys[pygame.K_UP]:
-        acceleration = direction_ship * THRUST
-        ship_speed += acceleration
+        if keys[pygame.K_UP]:
+            acceleration = direction_ship * THRUST
+            ship_speed += acceleration
 
-    # Wrap ship
-    if ship_rect.left > WIDTH:
-        spaceship_pos.x = -ship_rect.width / 2
+        # Wrap ship
+        if ship_rect.left > WIDTH:
+            spaceship_pos.x = -ship_rect.width / 2
 
-    elif ship_rect.right < 0:
-        spaceship_pos.x = WIDTH + ship_rect.width / 2
+        elif ship_rect.right < 0:
+            spaceship_pos.x = WIDTH + ship_rect.width / 2
 
-    if ship_rect.top > HEIGHT:
-        spaceship_pos.y = -ship_rect.height / 2
+        if ship_rect.top > HEIGHT:
+            spaceship_pos.y = -ship_rect.height / 2
 
-    elif ship_rect.bottom < 0:
-        spaceship_pos.y = HEIGHT + ship_rect.height / 2
+        elif ship_rect.bottom < 0:
+            spaceship_pos.y = HEIGHT + ship_rect.height / 2
 
-    ship_rect.center = spaceship_pos
+        ship_rect.center = spaceship_pos
 
-    for asteroid in asteroids:
-        asteroid.move()
+        for asteroid in asteroids:
+            asteroid.move()
 
-    for missile in list(missiles):
-        missile.move()
+        for missile in list(missiles):
+            missile.move()
 
-        if (
-            missile.pos.x < 0
-            or missile.pos.x > WIDTH
-            or missile.pos.y < 0
-            or missile.pos.y > HEIGHT
-        ):
-            if missile in missiles:
-                missiles.remove(missile)
-
-    for i in range(len(asteroids)):
-        for j in range(i + 1, len(asteroids)):
-            a1 = asteroids[i]
-            a2 = asteroids[j]
-
-            distance = sqrt(
-                (a1.pos.x - a2.pos.x) ** 2
-                + (a1.pos.y - a2.pos.y) ** 2
-            )
-
-            if distance <= a1.r + a2.r:
-                v1x = a1.velocity.x
-                v1y = a1.velocity.y
-                v2x = a2.velocity.x
-                v2y = a2.velocity.y
-
-                a1.velocity = pygame.math.Vector2(
-                    ((a1.mass - a2.mass) / (a1.mass + a2.mass) * v1x
-                     + (2 * a2.mass) / (a1.mass + a2.mass) * v2x),
-
-                    ((a1.mass - a2.mass) / (a1.mass + a2.mass) * v1y
-                     + (2 * a2.mass) / (a1.mass + a2.mass) * v2y)
-                )
-
-                a2.velocity = pygame.math.Vector2(
-                    ((a2.mass - a1.mass) / (a2.mass + a1.mass) * v2x
-                     + (2 * a1.mass) / (a2.mass + a1.mass) * v1x),
-
-                    ((a2.mass - a1.mass) / (a2.mass + a1.mass) * v2y
-                     + (2 * a1.mass) / (a2.mass + a1.mass) * v1y)
-                )
-
-    for missile in list(missiles):
-        for asteroid in list(asteroids):
-            distance = sqrt(
-                (missile.pos.x - asteroid.pos.x) ** 2
-                + (missile.pos.y - asteroid.pos.y) ** 2
-            )
-
-            if distance < missile.radius + asteroid.r:
+            if (
+                missile.pos.x < 0
+                or missile.pos.x > WIDTH
+                or missile.pos.y < 0
+                or missile.pos.y > HEIGHT
+            ):
                 if missile in missiles:
                     missiles.remove(missile)
 
-                if asteroid in asteroids:
-                    asteroids.remove(asteroid)
+        for missile in list(enemyMissile):
+            missile.move()
 
-                asteroids.append(Asteroid())
-                break
+            if (
+                missile.pos.x < 0
+                or missile.pos.x > WIDTH
+                or missile.pos.y < 0
+                or missile.pos.y > HEIGHT
+            ):
+                if missile in missiles:
+                    missiles.remove(missile)
 
-    screen.fill((20, 24, 40))
 
-    for asteroid in asteroids:
-        asteroid.draw()
+        for i in range(len(asteroids)):
+            for j in range(i + 1, len(asteroids)):
+                a1 = asteroids[i]
+                a2 = asteroids[j]
 
-    for missile in missiles:
-        missile.draw()
+                distance = sqrt(
+                    (a1.pos.x - a2.pos.x) ** 2
+                    + (a1.pos.y - a2.pos.y) ** 2
+                )
 
-    screen.blit(rotated_ship, ship_rect.topleft)
+                if distance <= a1.r + a2.r:
+                    v1x = a1.velocity.x
+                    v1y = a1.velocity.y
+                    v2x = a2.velocity.x
+                    v2y = a2.velocity.y
 
-    pygame.display.flip()
-    clock.tick(60)
+                    a1.velocity = pygame.math.Vector2(
+                        ((a1.mass - a2.mass) / (a1.mass + a2.mass) * v1x
+                        + (2 * a2.mass) / (a1.mass + a2.mass) * v2x),
+
+                        ((a1.mass - a2.mass) / (a1.mass + a2.mass) * v1y
+                        + (2 * a2.mass) / (a1.mass + a2.mass) * v2y)
+                    )
+
+                    a2.velocity = pygame.math.Vector2(
+                        ((a2.mass - a1.mass) / (a2.mass + a1.mass) * v2x
+                        + (2 * a1.mass) / (a2.mass + a1.mass) * v1x),
+
+                        ((a2.mass - a1.mass) / (a2.mass + a1.mass) * v2y
+                        + (2 * a1.mass) / (a2.mass + a1.mass) * v1y)
+                    )
+
+        for missile in list(missiles):
+            for asteroid in list(asteroids):
+                distance = sqrt(
+                    (missile.pos.x - asteroid.pos.x) ** 2
+                    + (missile.pos.y - asteroid.pos.y) ** 2
+                )
+
+                if distance < missile.radius + asteroid.r:
+                    if missile in missiles:
+                        missiles.remove(missile)
+
+                    if asteroid in asteroids:
+                        asteroids.remove(asteroid)
+
+                    asteroids.append(Asteroid())
+                    break
+
+        for missile in list(enemyMissile):
+            if ship_rect.collidepoint(missile.pos):
+                gameOver = True
+
+        screen.fill((20, 24, 40))
+
+        for asteroid in asteroids:
+            asteroid.draw()
+
+        for missile in missiles:
+            missile.draw()
+
+        for enemy in enemies:
+            enemy.draw()
+
+        screen.blit(rotated_ship, ship_rect.topleft)
+
+        pygame.display.flip()
+        clock.tick(60)
+    else:
+        
 
 pygame.quit()
