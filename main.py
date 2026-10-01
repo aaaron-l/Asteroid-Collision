@@ -39,16 +39,28 @@ DRAG = 0.993
 asteroids = []
 missiles = []
 enemyMissile = []
+respawnTime = 300
 
 class Asteroid:
     def __init__(self):
-        self.r = randint(10, 70)
-        self.velocity = pygame.math.Vector2(randint(-5, 5), randint(-5, 5))
+        self.r = randint(40, 60)
+        self.velocity = pygame.math.Vector2(randint(-3, 3), randint(-3, 3))
         if self.velocity.length() == 0:
             self.velocity = pygame.math.Vector2(2, 2)
-        self.pos = pygame.math.Vector2(randint(0, WIDTH), randint(0, HEIGHT))
+
+        while True:
+            self.pos = pygame.math.Vector2(randint(0, WIDTH), randint(0, HEIGHT))
+
+            if self.pos.distance_to(spaceship_pos) > self.r + 150:
+                break
+
         self.mass = self.r ** 2
         self.color = (randint(0, 255), randint(0, 255), randint(0, 255))
+        self.image = pygame.image.load("asteroid.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (self.r * 2, self.r * 2))
+        self.angle = randint(0, 360)
+        self.rotated = pygame.transform.rotate(self.image, self.angle)
+        self.rect = self.rotated.get_rect(center=self.pos)
 
     def move(self):
         self.pos += self.velocity
@@ -57,11 +69,13 @@ class Asteroid:
         if self.pos.y >= HEIGHT + self.r: self.pos.y = 0 - self.r
         elif self.pos.y < 0 - self.r: self.pos.y = HEIGHT + self.r
 
+        self.rect = self.rotated.get_rect(center=self.pos)
+
     def draw(self):
-        pygame.draw.circle(screen, self.color, (int(self.pos.x), int(self.pos.y)), self.r)
+        screen.blit(self.rotated, self.rect.topleft)
 
 class Missile:
-    def __init__(self, pos, direction): 
+    def __init__(self, pos, direction):
         self.radius = 7
         self.pos = pygame.math.Vector2(pos.x, pos.y)
         self.direction = direction
@@ -80,16 +94,18 @@ class Enemy:
         except pygame.error:
             self.image = pygame.Surface((70, 100), pygame.SRCALPHA)
             pygame.draw.polygon(self.image, (255, 0, 0), [(35, 0), (0, 100), (70, 100)])
-        
+
         self.pos = pos
         self.image = pygame.transform.scale(self.image, (70, 100))
         self.angle = 0
         self.change_angle = choice([-1, 1])
         self.rotation = 3
         self.patrol_distance = 400
-        self.shoot_cooldown = 0 
+        self.shoot_cooldown = 0
         self.rotated = pygame.transform.rotate(self.image, self.angle)
         self.rect = self.rotated.get_rect(center=self.pos)
+        self.choice_cooldown = 0
+        self.speed = 5
 
     def act(self):
         if self.shoot_cooldown > 0:
@@ -97,7 +113,7 @@ class Enemy:
 
         self.forward = pygame.Vector2(cos(radians(self.angle)), -sin(radians(self.angle)))
         distanceToPlayer = self.pos.distance_to(spaceship_pos)
-        
+
         if distanceToPlayer > 0:
             toPlayer = (spaceship_pos - self.pos).normalize()
             dot = self.forward.dot(toPlayer)
@@ -105,7 +121,7 @@ class Enemy:
 
     def mode(self, dot, distanceToPlayer, toPlayer):
         if distanceToPlayer <= self.patrol_distance:
-            if dot > 0.99: # Changed from exact 1 to threshold
+            if dot > 0.99:
                 self.shoot(enemyMissile)
             else:
                 cross = (self.forward[0] * toPlayer[1]) - (self.forward[1] * toPlayer[0])
@@ -114,10 +130,21 @@ class Enemy:
                 else:
                     self.angle += self.rotation
         else:
-            self.angle += self.change_angle * self.rotation
+            if self.choice_cooldown <= 0:
+                self.action = choice([self.rotate, self.travel])
+                self.choice_cooldown = 300
 
+            self.action()
+
+        self.choice_cooldown -= 1
         self.rotated = pygame.transform.rotate(self.image, self.angle)
         self.rect = self.rotated.get_rect(center=self.pos)
+
+    def rotate(self):
+        self.angle += self.change_angle * self.rotation
+
+    def travel(self):
+        self.pos += self.speed * self.forward
 
     def shoot(self, target_list):
         if self.shoot_cooldown == 0:
@@ -128,7 +155,7 @@ class Enemy:
         screen.blit(self.rotated, self.rect.topleft)
 
 # Spawn initial entities
-enemies = [Enemy()]
+enemies = []
 for x in range(6):
     asteroids.append(Asteroid())
 
@@ -138,7 +165,7 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        
+
         if not gameOver:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 missiles.append(Missile(spaceship_pos, direction_ship))
@@ -148,6 +175,7 @@ while running:
                 asteroids = [Asteroid() for _ in range(6)]
                 missiles.clear()
                 enemyMissile.clear()
+                enemies.clear()
                 spaceship_pos = pygame.math.Vector2(WIDTH / 2, HEIGHT / 2)
                 ship_speed = pygame.math.Vector2(0, 0)
                 angle = 0
@@ -160,7 +188,7 @@ while running:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]: angle += 3
         if keys[pygame.K_RIGHT]: angle -= 3
-        
+
         rad = radians(angle + 90)
         direction_ship = pygame.math.Vector2(cos(rad), -sin(rad))
 
@@ -188,11 +216,17 @@ while running:
 
         for enemy in enemies:
             enemy.act()
+            # Wrap enemy
+            if enemy.rect.left > WIDTH: enemy.pos.x = -enemy.rect.width / 2
+            elif enemy.rect.right < 0: enemy.pos.x = WIDTH + enemy.rect.width / 2
+            if enemy.rect.top > HEIGHT: enemy.pos.y = -enemy.rect.height / 2
+            elif enemy.rect.bottom < 0: enemy.pos.y = HEIGHT + enemy.rect.height / 2
+            enemy.rect.center = enemy.pos
 
         for missile in list(enemyMissile):
             missile.move()
             if missile.pos.x < 0 or missile.pos.x > WIDTH or missile.pos.y < 0 or missile.pos.y > HEIGHT:
-                if missile in enemyMissile: # Fixed targeted list
+                if missile in enemyMissile:
                     enemyMissile.remove(missile)
 
         # Asteroid collisions
@@ -208,10 +242,15 @@ while running:
                         ((a1.mass - a2.mass) / (a1.mass + a2.mass) * v1x + (2 * a2.mass) / (a1.mass + a2.mass) * v2x),
                         ((a1.mass - a2.mass) / (a1.mass + a2.mass) * v1y + (2 * a2.mass) / (a1.mass + a2.mass) * v2y)
                     )
+
                     a2.velocity = pygame.math.Vector2(
                         ((a2.mass - a1.mass) / (a2.mass + a1.mass) * v2x + (2 * a1.mass) / (a2.mass + a1.mass) * v1x),
                         ((a2.mass - a1.mass) / (a2.mass + a1.mass) * v2y + (2 * a1.mass) / (a2.mass + a1.mass) * v1y)
                     )
+
+        for asteroid in asteroids:
+            if spaceship_pos.distance_to(asteroid.pos) < asteroid.r * 0.85 + 35:
+                gameOver = True
 
         # Player missile hits asteroid
         for missile in list(missiles):
@@ -221,6 +260,7 @@ while running:
                     if asteroid in asteroids: asteroids.remove(asteroid)
                     asteroids.append(Asteroid())
                     break
+
             for enemy in list(enemies):
                 if enemy.rect.collidepoint(missile.pos):
                     if enemy in enemies:
@@ -231,9 +271,14 @@ while running:
             if ship_rect.collidepoint(missile.pos):
                 gameOver = True
 
+        # Respawn enemy
         if len(enemies) == 0:
-            enemies.append(Enemy(pygame.Math.Vector2(random(WIDTH), random(HEIGHT))))
-            
+            if respawnTime == 0:
+                enemies.append(Enemy(pygame.math.Vector2(randint(0, WIDTH), randint(0, HEIGHT))))
+                respawnTime = 300
+            else:
+                respawnTime -= 1
+
         # Drawing everything
         screen.fill((20, 24, 40))
         for asteroid in asteroids: asteroid.draw()
@@ -241,7 +286,7 @@ while running:
         for missile in enemyMissile: missile.draw()
         for enemy in enemies: enemy.draw()
         screen.blit(rotated_ship, ship_rect.topleft)
-        
+
     else:
         # Game Over Screen
         screen.fill((20, 24, 40))
