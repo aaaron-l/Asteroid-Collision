@@ -1,3 +1,3 @@
 # Asteroid-Collision
 
-Simulate vectors and collisions of circular objects
+Left arrow is rotate left, Right arrow is rotate right. M1/LMB is shoot
