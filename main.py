@@ -12,6 +12,8 @@ WIDTH = 1500
 HEIGHT = 1000
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
+score = 0
+
 # Fonts and Colors
 FONT_BIG = pygame.font.SysFont(None, 80)
 FONT_SMALL = pygame.font.SysFont(None, 40)
@@ -159,7 +161,7 @@ class Enemy:
 
 async def main():
     global spaceship_pos, ship_speed, angle, rad, direction_ship
-    global asteroids, missiles, enemyMissile, enemies, respawnTime
+    global asteroids, missiles, enemyMissile, enemies, respawnTime, score
 
     running = True
     gameOver = False
@@ -189,6 +191,7 @@ async def main():
                     spaceship_pos = pygame.math.Vector2(WIDTH / 2, HEIGHT / 2)
                     ship_speed = pygame.math.Vector2(0, 0)
                     angle = 0
+                    score = 0
                     gameOver = False
 
         if not gameOver:
@@ -196,8 +199,8 @@ async def main():
             spaceship_pos += ship_speed
 
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]: angle += 3
-            if keys[pygame.K_RIGHT]: angle -= 3
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]: angle += 3
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]: angle -= 3
 
             rad = radians(angle + 90)
             direction_ship = pygame.math.Vector2(cos(rad), -sin(rad))
@@ -205,7 +208,7 @@ async def main():
             rotated_ship = pygame.transform.rotate(spaceship, angle)
             ship_rect = rotated_ship.get_rect(center=spaceship_pos)
 
-            if keys[pygame.K_UP]:
+            if keys[pygame.K_UP] or keys[pygame.K_w]:
                 acceleration = direction_ship * THRUST
                 ship_speed += acceleration
 
@@ -269,12 +272,14 @@ async def main():
                         if missile in missiles: missiles.remove(missile)
                         if asteroid in asteroids: asteroids.remove(asteroid)
                         asteroids.append(Asteroid())
+                        score += 1
                         break
 
                 for enemy in list(enemies):
                     if enemy.rect.collidepoint(missile.pos):
                         if enemy in enemies: enemies.remove(enemy)
                         if missile in missiles: missiles.remove(missile)
+                        score += 5
                         break
 
             # Enemy missile hits player
@@ -297,6 +302,7 @@ async def main():
             for missile in enemyMissile: missile.draw()
             for enemy in enemies: enemy.draw()
             screen.blit(rotated_ship, ship_rect.topleft)
+            screen.blit(FONT_SMALL.render(f"Score: {score}", True, (255, 255, 255)), (10, 10))
 
         else:
             # Game Over Screen
@@ -308,6 +314,10 @@ async def main():
             restart_text = FONT_SMALL.render("Press SPACE to Restart", True, COLOR_WHITE)
             restart_rect = restart_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 30))
             screen.blit(restart_text, restart_rect)
+
+            score_text = FONT_SMALL.render(f"Your Score: {score}", True, COLOR_WHITE)
+            score_rect = score_text.get_rect(center=(WIDTH//2, HEIGHT//2 + 70))
+            screen.blit(score_text, score_rect)
 
         pygame.display.flip()
         clock.tick(60)
