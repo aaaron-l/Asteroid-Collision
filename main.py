@@ -32,6 +32,9 @@ ship_speed = pygame.math.Vector2(0, 0)
 angle = 0
 rad = radians(angle + 90)
 direction_ship = pygame.math.Vector2(cos(rad), -sin(rad))
+dash_cd = 0
+dash_timer = 0
+dash_value = 300
 
 THRUST = 0.12
 DRAG = 0.993
@@ -39,7 +42,7 @@ DRAG = 0.993
 asteroids = []
 missiles = []
 enemyMissile = []
-respawnTime = 300
+respawnTime = 30
 
 class Asteroid:
     def __init__(self):
@@ -161,7 +164,7 @@ class Enemy:
 
 async def main():
     global spaceship_pos, ship_speed, angle, rad, direction_ship
-    global asteroids, missiles, enemyMissile, enemies, respawnTime, score
+    global asteroids, missiles, enemyMissile, enemies, respawnTime, score, dash_cd, dash_timer, dash_value
 
     running = True
     gameOver = False
@@ -197,6 +200,10 @@ async def main():
         if not gameOver:
             ship_speed *= DRAG
             spaceship_pos += ship_speed
+            if dash_timer > 0:
+                spaceship_pos += dash_value/30*direction_ship
+                dash_timer -= 1
+            dash_cd -= 1
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_LEFT] or keys[pygame.K_a]: angle += 3
@@ -211,6 +218,12 @@ async def main():
             if keys[pygame.K_UP] or keys[pygame.K_w]:
                 acceleration = direction_ship * THRUST
                 ship_speed += acceleration
+
+            if keys[pygame.K_q]:
+                if dash_cd <= 0:
+                    dash_timer = 30
+                    dash_cd = 180
+                    
 
             # Wrap ship
             if ship_rect.left > WIDTH: spaceship_pos.x = -ship_rect.width / 2
