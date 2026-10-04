@@ -54,7 +54,7 @@ class Asteroid:
         while True:
             self.pos = pygame.math.Vector2(randint(0, WIDTH), randint(0, HEIGHT))
 
-            if self.pos.distance_to(spaceship_pos) > self.r + 150:
+            if self.pos.distance_to(spaceship_pos) > self.r + 175:
                 break
 
         self.mass = self.r ** 2
