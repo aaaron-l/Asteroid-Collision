@@ -300,13 +300,12 @@ async def main():
                 if ship_rect.collidepoint(missile.pos):
                     gameOver = True
 
-            # Respawn enemy
-            if len(enemies) == 0:
-                if respawnTime == 0:
-                    enemies.append(Enemy(pygame.math.Vector2(randint(0, WIDTH), randint(0, HEIGHT))))
-                    respawnTime = 300
-                else:
-                    respawnTime -= 1
+            # Spawn enemies
+            if respawnTime == 0:
+                enemies.append(Enemy(pygame.math.Vector2(randint(0, WIDTH), randint(0, HEIGHT))))
+                respawnTime = 300
+            else:
+                respawnTime -= 1
 
             # Drawing everything
             screen.fill((20, 24, 40))
