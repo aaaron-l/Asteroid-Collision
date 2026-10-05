@@ -98,7 +98,7 @@ class Missile:
 class Enemy:
     def __init__(self, pos):
         try:
-            self.image = pygame.image.load("enemy.png").convert_alpha()
+            self.image = choice([pygame.image.load("enemy.png").convert_alpha(), pygame.image.load("enemy2.png").convert_alpha()])
         except pygame.error:
             self.image = pygame.Surface((70, 100), pygame.SRCALPHA)
             pygame.draw.polygon(self.image, (255, 0, 0), [(35, 0), (0, 100), (70, 100)])
@@ -109,7 +109,7 @@ class Enemy:
         self.change_angle = choice([-1, 1])
         self.rotation = 3
         self.patrol_distance = 400
-        self.shoot_cooldown = 0
+        self.shoot_cooldown = 60
         self.rotated = pygame.transform.rotate(self.image, self.angle)
         self.rect = self.rotated.get_rect(center=self.pos)
         self.choice_cooldown = 0
